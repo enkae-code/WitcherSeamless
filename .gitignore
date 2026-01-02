@@ -147,3 +147,27 @@ UpgradeLog*.htm
 user*.bat
 
 .vscode/
+### Witcher 3 / REDkit (Seamless Project)
+# Massive uncooked asset depots (Do NOT index or commit these)
+/uncooked/
+/depot/
+/r4data/
+
+# REDkit workspace & temp files
+*.w2w
+*.w2vfs
+*.w2preview
+*.w2ent
+*.w2mesh
+*.w2proj
+
+# Script compilation artifacts
+*.redscripts
+*.scripts.cache
+
+# C++ Build Output (Keep binaries out of version control)
+/bin/
+/out/
+/x64/
+/Debug/
+/Release/

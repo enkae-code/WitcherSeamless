@@ -23,6 +23,12 @@ endif()
 
 target_include_directories(common INTERFACE "${CMAKE_CURRENT_LIST_DIR}")
 
+# Remove /WX flag and suppress C4565 warning (redefinition of malloc)
+if(MSVC)
+  momo_target_remove_compile_options(common /WX)
+  target_compile_options(common PUBLIC /wd4565)
+endif()
+
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 target_link_libraries(common PUBLIC Threads::Threads)
