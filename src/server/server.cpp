@@ -3,6 +3,7 @@
 
 #include <utils/string.hpp>
 #include <utils/byte_buffer.hpp>
+#include <network/protocol.hpp>
 
 #include "console.hpp"
 
@@ -82,7 +83,7 @@ namespace
         client.public_key = std::move(crypto_key);
         client.last_packet = std::chrono::high_resolution_clock::now();
 
-        console::log("Player authenticated: %s (%llX)", source.to_string().data(), client.guid);
+        console::log("[SERVER] Player Authenticated: %llX", client.guid);
     }
 
     void handle_player_kill(const network::manager& manager, server::client_map& clients, const network::address& source,
@@ -138,6 +139,98 @@ namespace
         }
     }
 
+    // ===========================================================================
+    // TRUE CO-OP BROADCAST HANDLERS - Quest/Combat/Cutscene Sync
+    // ===========================================================================
+
+    void handle_fact_broadcast(const network::manager& manager, server::client_map& clients,
+                              const network::address& source, const std::string_view& data)
+    {
+        utils::buffer_deserializer buffer(data);
+        const auto protocol = buffer.read<uint32_t>();
+        if (protocol != game::PROTOCOL)
+        {
+            return;
+        }
+
+        const auto type = buffer.read<network::protocol::packet_type>();
+        if (type != network::protocol::packet_type::fact)
+        {
+            return;
+        }
+
+        // Broadcast to all clients except sender
+        for (const auto& [address, client] : clients)
+        {
+            if (address == source)
+            {
+                continue;
+            }
+
+            if (client.is_authenticated())
+            {
+                (void)manager.send(address, "fact", std::string(data));
+            }
+        }
+    }
+
+    void handle_attack_broadcast(const network::manager& manager, server::client_map& clients,
+                                const network::address& source, const std::string_view& data)
+    {
+        utils::buffer_deserializer buffer(data);
+        const auto protocol = buffer.read<uint32_t>();
+        if (protocol != game::PROTOCOL)
+        {
+            return;
+        }
+
+        const auto type = buffer.read<network::protocol::packet_type>();
+        if (type != network::protocol::packet_type::attack)
+        {
+            return;
+        }
+
+        // Broadcast to all clients except sender
+        for (const auto& [address, client] : clients)
+        {
+            if (address == source)
+            {
+                continue;
+            }
+
+            if (client.is_authenticated())
+            {
+                (void)manager.send(address, "attack", std::string(data));
+            }
+        }
+    }
+
+    void handle_cutscene_broadcast(const network::manager& manager, server::client_map& clients,
+                                  const network::address& /* source */, const std::string_view& data)
+    {
+        utils::buffer_deserializer buffer(data);
+        const auto protocol = buffer.read<uint32_t>();
+        if (protocol != game::PROTOCOL)
+        {
+            return;
+        }
+
+        const auto type = buffer.read<network::protocol::packet_type>();
+        if (type != network::protocol::packet_type::cutscene)
+        {
+            return;
+        }
+
+        // Broadcast to all clients INCLUDING sender for synchronized playback
+        for (const auto& [address, client] : clients)
+        {
+            if (client.is_authenticated())
+            {
+                (void)manager.send(address, "cutscene", std::string(data));
+            }
+        }
+    }
+
     void send_state(const network::manager& manager, const server::client_map& clients)
     {
         std::vector<game::player> states{};
@@ -179,6 +272,11 @@ server::server(const uint16_t port)
     this->on("state", &handle_player_state);
     this->on("kill", &handle_player_kill);
     this->on("authResponse", &handle_authentication_response);
+
+    // Register True Co-op broadcast handlers
+    this->on("fact", &handle_fact_broadcast);
+    this->on("attack", &handle_attack_broadcast);
+    this->on("cutscene", &handle_cutscene_broadcast);
 }
 
 uint16_t server::get_ipv4_port() const
