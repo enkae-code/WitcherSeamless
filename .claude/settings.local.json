@@ -12,7 +12,12 @@
       "Bash(powershell:*)",
       "Bash(findstr:*)",
       "Bash(cmd /c \"if exist \"\"C:\\\\Program Files \\(x86\\)\\\\Steam\\\\steamapps\\\\common\\\\The Witcher 3\\\\bin\\\\x64_dx12\\\\dxgi.dll\"\" \\( ren \"\"C:\\\\Program Files \\(x86\\)\\\\Steam\\\\steamapps\\\\common\\\\The Witcher 3\\\\bin\\\\x64_dx12\\\\dxgi.dll\"\" d3d11.dll && echo Renamed dxgi.dll to d3d11.dll \\) else \\( echo dxgi.dll not found \\)\")",
-      "Bash(cmd /c dir \"C:\\\\Program Files \\(x86\\)\\\\Steam\\\\steamapps\\\\common\\\\The Witcher 3\\\\bin\\\\x64_dx12\\\\d*.dll\")"
+      "Bash(cmd /c dir \"C:\\\\Program Files \\(x86\\)\\\\Steam\\\\steamapps\\\\common\\\\The Witcher 3\\\\bin\\\\x64_dx12\\\\d*.dll\")",
+      "Bash(cmd /c Launch_W3MP.bat)",
+      "Bash(cmd /c dir \"C:\\\\Developer\\\\WitcherSeamless\\\\legacy_archive\" /b)",
+      "Bash(cmd /c \"C:\\\\Developer\\\\WitcherSeamless\\\\Launch_W3MP.bat\")",
+      "Bash(start steam://rungameid/292030// --launcher-skip -debugscripts -net)",
+      "Bash(start steam://rungameid/292030//--launcher-skip -debugscripts -net)"
     ]
   }
 }

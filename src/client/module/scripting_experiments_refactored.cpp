@@ -29,6 +29,12 @@
 #include <queue>
 #include <mutex>
 #include <chrono>
+#include <sstream>
+#include <iomanip>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+
+#pragma comment(lib, "ws2_32.lib")
 
 namespace scripting_experiments
 {
@@ -258,6 +264,8 @@ namespace scripting_experiments
         };
         
         utils::concurrency::container<players> g_players;
+        std::map<uint64_t, W3mPlayerState> g_remote_players;
+        std::mutex g_remote_players_mutex;
         
         // ===================================================================
         // GLOBAL STATE
@@ -517,6 +525,32 @@ namespace scripting_experiments
                        packet.player_guid, packet.total_crowns, packet.game_time, packet.weather_id);
             });
         }
+
+        void receive_player_state_safe(const network::address& address, const std::string_view& data)
+        {
+            g_telemetry.increment_received();
+            receive_packet_safe("PLAYER_STATE", address, data, [](const network::address& /* addr */, const std::string_view& data) {
+                utils::buffer_deserializer buffer(data);
+                buffer.read<uint32_t>(); // Skip protocol
+
+                const auto packet = buffer.read<network::protocol::W3mPlayerStatePacket>();
+
+                if (packet.player_guid == utils::identity::get_guid())
+                {
+                    return;
+                }
+
+                W3mPlayerState state;
+                state.position = convert(packet.position);
+                state.angles = convert(packet.angles);
+                state.velocity = convert(packet.velocity);
+                state.move_type = packet.move_type;
+                state.speed = packet.speed;
+
+                std::lock_guard<std::mutex> lock(g_remote_players_mutex);
+                g_remote_players[packet.player_guid] = state;
+            });
+        }
         
         // ===================================================================
         // BRIDGE FUNCTIONS - WITCHERSCRIPT CALLABLE
@@ -643,12 +677,12 @@ namespace scripting_experiments
         
         void copy_session_ip()
         {
-            std::string session_info = "127.0.0.1:3074";  // Default local address
-            
+            std::string session_info = EncodeSessionID();
+
             if (OpenClipboard(nullptr))
             {
                 EmptyClipboard();
-                
+
                 const size_t len = session_info.length() + 1;
                 HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, len);
                 if (hMem)
@@ -657,14 +691,43 @@ namespace scripting_experiments
                     GlobalUnlock(hMem);
                     SetClipboardData(CF_TEXT, hMem);
                 }
-                
+
                 CloseClipboard();
-                printf("[W3MP SESSION] IP copied to clipboard: %s\n", session_info.c_str());
+                printf("[W3MP SESSION] Session ID copied to clipboard: %s\n", session_info.c_str());
             }
             else
             {
                 printf("[W3MP SESSION] Failed to open clipboard\n");
             }
+        }
+
+        void W3mJoinSession(const scripting::string& session_id_str)
+        {
+            std::string session_id = session_id_str.to_string();
+            std::string ip_port = DecodeSessionID(session_id);
+            if (ip_port.empty())
+            {
+                printf("[W3MP SESSION] Invalid Session ID format.\n");
+                return;
+            }
+
+            size_t colon_pos = ip_port.find(':');
+            if (colon_pos == std::string::npos)
+            {
+                printf("[W3MP SESSION] Invalid IP:Port format in session ID.\n");
+                return;
+            }
+
+            std::string ip = ip_port.substr(0, colon_pos);
+            int port = std::stoi(ip_port.substr(colon_pos + 1));
+
+            network::address server_addr(ip.c_str(), port);
+            network::connect(server_addr);
+
+            uint64_t temp_session_id = utils::identity::get_guid();
+            W3mInitiateHandshake(temp_session_id);
+
+            printf("[W3MP SESSION] Attempting to join session at %s:%d\n", ip.c_str(), port);
         }
         
         void debug_print(const scripting::string& str)
@@ -682,20 +745,50 @@ namespace scripting_experiments
                                 const int32_t move_type,
                                 const float speed)
         {
-            UNREFERENCED_PARAMETER(position);
-            UNREFERENCED_PARAMETER(angles);
-            UNREFERENCED_PARAMETER(velocity);
-            UNREFERENCED_PARAMETER(move_type);
-            UNREFERENCED_PARAMETER(speed);
-            // Stub: Player state would be stored in g_players
-            W3mLog("W3mStorePlayerState called");
+            network::protocol::W3mPlayerStatePacket packet{};
+            packet.player_guid = utils::identity::get_guid();
+            packet.position = convert(position);
+            packet.angles = convert(angles);
+            packet.velocity = convert(velocity);
+            packet.move_type = move_type;
+            packet.speed = speed;
+
+            utils::buffer_serializer buffer{};
+            buffer.write(game::PROTOCOL);
+            buffer.write(packet);
+
+            g_telemetry.increment_sent();
+
+            if (g_loopback_enabled)
+            {
+                receive_player_state_safe(network::get_master_server(), buffer.get_buffer());
+            }
+            else
+            {
+                network::send(network::get_master_server(), "player_state", buffer.get_buffer());
+            }
         }
 
         scripting::array<W3mPlayer> W3mGetPlayerStates()
         {
-            // Stub: Return empty player array for now
-            scripting::array<W3mPlayer> players{};
-            return players;
+            scripting::array<W3mPlayer> players_array{};
+
+            std::lock_guard<std::mutex> lock(g_remote_players_mutex);
+            for (auto const& [guid, state] : g_remote_players)
+            {
+                W3mPlayer player{};
+                player.guid = guid;
+                
+                scripting::array<W3mPlayerState> states_array{};
+                states_array.add(state);
+                player.state = states_array;
+                
+                player.name = scripting::string(get_player_name(guid).c_str());
+
+                players_array.add(player);
+            }
+
+            return players_array;
         }
 
         void W3mSetNpcDisplayName(const void* npc, const scripting::string& display_name)
@@ -913,6 +1006,7 @@ namespace scripting_experiments
                 scripting::register_function<W3mBroadcastAchievement>(L"W3mBroadcastAchievement");
                 scripting::register_function<W3mGetNetworkStats>(L"W3mGetNetworkStats");
                 scripting::register_function<W3mInitiateHandshake>(L"W3mInitiateHandshake");
+                scripting::register_function<W3mJoinSession>(L"W3mJoinSession");
 
                 // Register missing stub functions to prevent crashes
                 scripting::register_function<W3mStorePlayerState>(L"W3mStorePlayerState");
@@ -944,6 +1038,7 @@ namespace scripting_experiments
                 network::on("achievement", &receive_achievement_safe);
                 network::on("heartbeat", &receive_heartbeat_safe);
                 network::on("handshake", &receive_handshake_safe);
+                network::on("player_state", &receive_player_state_safe);
                 
                 // 5-second Reconciliation Heartbeat
                 scheduler::loop([] {

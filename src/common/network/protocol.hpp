@@ -177,6 +177,16 @@ namespace network::protocol
         uint64_t timestamp{};          // Heartbeat timestamp
     };
 
+    struct player_state_packet
+    {
+        uint64_t player_guid{};
+        Vector position{};
+        EulerAngles angles{};
+        Vector velocity{};
+        int32_t move_type{};
+        float speed{};
+    };
+
     // ===========================================================================
     // SCRIPTING & LEGACY TYPE ALIASES
     // ===========================================================================
@@ -197,6 +207,7 @@ namespace network::protocol
     using W3mAchievementPacket = achievement_packet;
     using W3mHandshakePacket = handshake_packet;
     using W3mHeartbeatPacket = heartbeat_packet;
+    using W3mPlayerStatePacket = player_state_packet;
 
     // ===========================================================================
     // PACKET TYPE ENUMERATION
