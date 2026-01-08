@@ -96,6 +96,7 @@ namespace scripting_experiments
         void receive_session_state_safe(const network::address& address, const std::string_view& data);
         void receive_achievement_safe(const network::address& address, const std::string_view& data);
         void receive_heartbeat_safe(const network::address& address, const std::string_view& data);
+        void receive_attack_safe(const network::address& address, const std::string_view& data);
         
         // ===================================================================
         // NATIVE UI CLASS - CDPR HEX CODES
@@ -551,6 +552,23 @@ namespace scripting_experiments
                 g_remote_players[packet.player_guid] = state;
             });
         }
+
+        void receive_attack_safe(const network::address& address, const std::string_view& data)
+        {
+            g_telemetry.increment_received();
+            receive_packet_safe("ATTACK", address, data, [](const network::address& /* addr */, const std::string_view& data) {
+                utils::buffer_deserializer buffer(data);
+                buffer.read<uint32_t>(); // Skip protocol
+
+                const auto packet = buffer.read<network::protocol::W3mAttackPacket>();
+                const auto target_tag = network::protocol::extract_string(packet.target_tag);
+                const auto player_name = get_player_name(packet.attacker_guid);
+
+                printf("[W3MP COMBAT] Received attack: %s -> %s (%.1f dmg, type %d)\n",
+                       player_name.c_str(), target_tag.c_str(), packet.damage_amount,
+                       static_cast<int32_t>(packet.type));
+            });
+        }
         
         // ===================================================================
         // BRIDGE FUNCTIONS - WITCHERSCRIPT CALLABLE
@@ -830,11 +848,35 @@ namespace scripting_experiments
                                const float damage_amount,
                                const int32_t attack_type)
         {
-            UNREFERENCED_PARAMETER(attacker_guid);
-            UNREFERENCED_PARAMETER(target_tag);
-            UNREFERENCED_PARAMETER(attack_type);
-            // Stub: Attack broadcasting
-            W3mLog("W3mBroadcastAttack called: damage=%.1f", damage_amount);
+            const auto target_tag_str = target_tag.to_string();
+
+            network::protocol::W3mAttackPacket packet{};
+            packet.attacker_guid = attacker_guid;
+            network::protocol::copy_string(packet.target_tag, target_tag_str);
+            packet.damage_amount = damage_amount;
+            packet.type = static_cast<network::protocol::attack_type>(attack_type);
+            packet.force_kill = false;
+            packet.timestamp = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+
+            utils::buffer_serializer buffer{};
+            buffer.write(game::PROTOCOL);
+            buffer.write(packet);
+
+            g_telemetry.increment_sent();
+
+            if (g_loopback_enabled)
+            {
+                scheduler::once([buffer = buffer.get_buffer()] {
+                    receive_attack_safe(network::get_master_server(), buffer);
+                }, scheduler::pipeline::async);
+            }
+            else
+            {
+                network::send(network::get_master_server(), "attack", buffer.get_buffer());
+            }
+
+            printf("[W3MP COMBAT] Broadcasting attack: %s -> %s (%.1f dmg, type %d)\n",
+                   std::to_string(attacker_guid).c_str(), target_tag_str.c_str(), damage_amount, attack_type);
         }
 
         void W3mBroadcastCutscene(const scripting::string& cutscene_path,
@@ -953,17 +995,38 @@ namespace scripting_experiments
             });
         }
         
+        // ===================================================================
+        // WORLD STATE RETRIEVAL - GAME ENGINE BRIDGE
+        // ===================================================================
+
+        std::atomic<uint32_t> g_cached_crowns{0};
+        std::atomic<uint32_t> g_cached_game_time{0};
+        std::atomic<uint16_t> g_cached_weather_id{0};
+
+        void W3mUpdateCrowns(int32_t total_crowns)
+        {
+            g_cached_crowns.store(static_cast<uint32_t>(total_crowns));
+        }
+
+        void W3mUpdateGameTime(int32_t game_time_seconds)
+        {
+            g_cached_game_time.store(static_cast<uint32_t>(game_time_seconds));
+        }
+
+        void W3mUpdateWeather(int32_t weather_id)
+        {
+            g_cached_weather_id.store(static_cast<uint16_t>(weather_id));
+        }
+
         void broadcast_heartbeat()
         {
-            // Heartbeat data would normally be gathered from game state
-            // For now, send minimal heartbeat to maintain connection
             network::protocol::W3mHeartbeatPacket packet{};
             packet.player_guid = utils::identity::get_guid();
-            packet.total_crowns = 0;  // Would be retrieved from game state
+            packet.total_crowns = g_cached_crowns.load();
             packet.world_fact_hash = 0;
             packet.script_version = SCRIPT_VERSION;
-            packet.game_time = 0;  // Would be retrieved from game state
-            packet.weather_id = 0;  // Would be retrieved from game state
+            packet.game_time = g_cached_game_time.load();
+            packet.weather_id = g_cached_weather_id.load();
             packet.timestamp = std::chrono::high_resolution_clock::now().time_since_epoch().count();
 
             utils::buffer_serializer buffer{};
@@ -1022,14 +1085,19 @@ namespace scripting_experiments
                 scripting::register_function<W3mBroadcastVehicleMount>(L"W3mBroadcastVehicleMount");
                 scripting::register_function<W3mBroadcastNPCDeath>(L"W3mBroadcastNPCDeath");
 
-                W3mLog("Registered 21 WitcherScript functions");
+                // Register world state update functions for heartbeat
+                scripting::register_function<W3mUpdateCrowns>(L"W3mUpdateCrowns");
+                scripting::register_function<W3mUpdateGameTime>(L"W3mUpdateGameTime");
+                scripting::register_function<W3mUpdateWeather>(L"W3mUpdateWeather");
+
+                W3mLog("Registered 24 WitcherScript functions");
                 
                 // Visual confirmation: Windows MessageBox for DLL injection verification
-                MessageBoxA(nullptr, 
-                    "W3M: 21 Functions Registered\n\n"
+                MessageBoxA(nullptr,
+                    "W3M: 24 Functions Registered\n\n"
                     "WitcherSeamless multiplayer DLL successfully injected.\n"
                     "Press F2 in-game to toggle Live Monitor overlay.",
-                    "WitcherSeamless - DLL Active", 
+                    "WitcherSeamless - DLL Active",
                     MB_OK | MB_ICONINFORMATION);
                 
                 // Register network callbacks with Silent Recovery
@@ -1039,6 +1107,7 @@ namespace scripting_experiments
                 network::on("heartbeat", &receive_heartbeat_safe);
                 network::on("handshake", &receive_handshake_safe);
                 network::on("player_state", &receive_player_state_safe);
+                network::on("attack", &receive_attack_safe);
                 
                 // 5-second Reconciliation Heartbeat
                 scheduler::loop([] {
