@@ -41,36 +41,22 @@ Release/
 CMakeCache.txt
 CMakeFiles/
 CMakePresets.json
-Win32/
 
 # --- Special Files ---
 nul
 
-/scripts_mod/
-/scripts_redkit/
-/r4game_config/
-
-
-# AI / Tooling Context (Private)
-CLAUDE.md
-GEMINI.md
-.windsurfrules
-/redkit_scripts/
-/r4game_config/
-
-
-# AI & Workflow Tools
-CLAUDE.md
-GEMINI.md
-.windsurfrules
-/redkit_scripts/
-/r4game_config/
-
-
 # --- Private AI & Tooling ---
 CLAUDE.md
 GEMINI.md
+.claude/
+.windsurf/
+.windsurf/rules
 .windsurfrules
+redkit_scripts
 /redkit_scripts/
+r4game_config
 /r4game_config/
-
+scripts_mod
+/scripts_mod/
+scripts_redkit
+/scripts_redkit/
