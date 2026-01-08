@@ -2,6 +2,7 @@
 
 #include "../loader/component_loader.hpp"
 #include "../loader/loader.hpp"
+#include "../w3m_logger.h"
 
 #include "scripting.hpp"
 
