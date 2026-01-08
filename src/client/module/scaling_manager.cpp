@@ -87,11 +87,8 @@ namespace scaling
                 const auto config = scaling_manager::create_config(party_count, is_boss);
                 g_npc_scaling_cache[npc_guid] = config;
 
-                printf("[W3MP SCALING] Applied to NPC %llu: %.1fx health%s (party: %d)\n",
-                       npc_guid,
-                       config.health_multiplier,
-                       is_boss ? " + damage boost" : "",
-                       party_count);
+                printf("[W3MP SCALING] Applied to NPC %llu: %.1fx health%s (party: %d)\n", npc_guid, config.health_multiplier,
+                       is_boss ? " + damage boost" : "", party_count);
             }
         }
 
@@ -108,8 +105,7 @@ namespace scaling
 
             const float health_multiplier = scaling_manager::calculate_health_multiplier(party_count);
 
-            printf("[W3MP SCALING] NPC party scaling: %.1fx health multiplier for %d players\n",
-                   health_multiplier, party_count);
+            printf("[W3MP SCALING] NPC party scaling: %.1fx health multiplier for %d players\n", health_multiplier, party_count);
         }
 
         void W3mSetPartyCount(int32_t party_count)
@@ -151,7 +147,7 @@ namespace scaling
 
         class component final : public component_interface
         {
-        public:
+          public:
             void post_load() override
             {
                 W3mLog("=== REGISTERING SCALING MANAGER FUNCTIONS ===");
@@ -166,13 +162,15 @@ namespace scaling
 
                 W3mLog("Registered 7 scaling manager functions");
 
-                scheduler::loop([] {
-                    const auto party_count = get_party_count();
-                    if (party_count > 1)
-                    {
-                        printf("[W3MP SCALING] Active party size: %d players\n", party_count);
-                    }
-                }, scheduler::pipeline::async, std::chrono::milliseconds(30000));
+                scheduler::loop(
+                    [] {
+                        const auto party_count = get_party_count();
+                        if (party_count > 1)
+                        {
+                            printf("[W3MP SCALING] Active party size: %d players\n", party_count);
+                        }
+                    },
+                    scheduler::pipeline::async, std::chrono::milliseconds(30000));
 
                 printf("[W3MP SCALING] Scaling manager initialized\n");
             }

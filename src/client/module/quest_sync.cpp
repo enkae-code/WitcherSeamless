@@ -75,8 +75,7 @@ namespace quest_sync
                 g_fact_manager.register_fact(fact.fact_name, fact.value, fact.player_guid);
             }
 
-            printf("[W3MP ATOMIC] Global sync completed, %zu pending facts applied\n",
-                   g_W3mPendingFacts.size());
+            printf("[W3MP ATOMIC] Global sync completed, %zu pending facts applied\n", g_W3mPendingFacts.size());
 
             g_W3mPendingFacts.clear();
         }
@@ -256,14 +255,9 @@ namespace quest_sync
             return static_cast<int32_t>(g_fact_manager.compute_world_state_hash());
         }
 
-        void W3mCheckDialogueProximity(uint64_t initiator_guid,
-                                       const scripting::game::Vector& initiator_position)
+        void W3mCheckDialogueProximity(uint64_t initiator_guid, const scripting::game::Vector& initiator_position)
         {
-            const float position[3] = {
-                initiator_position.X,
-                initiator_position.Y,
-                initiator_position.Z
-            };
+            const float position[3] = {initiator_position.X, initiator_position.Y, initiator_position.Z};
 
             check_dialogue_proximity(initiator_guid, position);
         }
@@ -272,7 +266,7 @@ namespace quest_sync
         // NARRATIVE FAIL-SAFE - TIMEOUT PROTECTION
         // ===================================================================
 
-        constexpr uint64_t STORY_LOCK_TIMEOUT_MS = 15000;  // 15 seconds
+        constexpr uint64_t STORY_LOCK_TIMEOUT_MS = 15000; // 15 seconds
 
         void check_story_lock_timeout()
         {
@@ -283,15 +277,14 @@ namespace quest_sync
 
             const auto lock_timestamp = g_story_lock.get_lock_timestamp();
             const auto now = std::chrono::high_resolution_clock::now().time_since_epoch().count();
-            const auto elapsed_ms = (now - lock_timestamp) / 1000000;  // Convert nanoseconds to milliseconds
+            const auto elapsed_ms = (now - lock_timestamp) / 1000000; // Convert nanoseconds to milliseconds
 
             if (elapsed_ms > STORY_LOCK_TIMEOUT_MS)
             {
                 const auto initiator_guid = g_story_lock.get_initiator_guid();
                 const auto scene_id = g_story_lock.get_scene_id();
 
-                printf("[W3MP NARRATIVE] FAIL-SAFE: Story lock timeout detected (initiator: %llu, scene: %u)\n",
-                       initiator_guid, scene_id);
+                printf("[W3MP NARRATIVE] FAIL-SAFE: Story lock timeout detected (initiator: %llu, scene: %u)\n", initiator_guid, scene_id);
                 printf("[W3MP NARRATIVE] FAIL-SAFE: Automatically releasing lock after %llu ms\n", elapsed_ms);
 
                 release_global_story_lock(true);
@@ -307,8 +300,7 @@ namespace quest_sync
             const auto world_state_hash = g_fact_manager.compute_world_state_hash();
             const auto fact_count = g_fact_manager.get_fact_count();
 
-            printf("[W3MP NARRATIVE] Heartbeat: %zu facts, world_state_hash=%u\n",
-                   fact_count, world_state_hash);
+            printf("[W3MP NARRATIVE] Heartbeat: %zu facts, world_state_hash=%u\n", fact_count, world_state_hash);
 
             check_story_lock_timeout();
         }
@@ -319,7 +311,7 @@ namespace quest_sync
 
         class component final : public component_interface
         {
-        public:
+          public:
             void post_load() override
             {
                 W3mLog("=== REGISTERING NARRATIVE SYNCHRONIZATION FUNCTIONS ===");
@@ -339,9 +331,7 @@ namespace quest_sync
 
                 W3mLog("Registered 12 narrative synchronization functions");
 
-                scheduler::loop([] {
-                    broadcast_narrative_heartbeat();
-                }, scheduler::pipeline::async, std::chrono::milliseconds(5000));
+                scheduler::loop([] { broadcast_narrative_heartbeat(); }, scheduler::pipeline::async, std::chrono::milliseconds(5000));
 
                 printf("[W3MP NARRATIVE] Narrative synchronization system initialized\n");
             }

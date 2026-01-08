@@ -39,8 +39,46 @@ namespace network
 
     const address& get_master_server()
     {
-        static const address master{"127.0.0.1:28960"};  // Local development server
+        static const address master{"127.0.0.1:28960"}; // Local development server
         return master;
+    }
+
+    bool connect(const std::string& address_string)
+    {
+        try
+        {
+            const size_t colon_pos = address_string.find(':');
+
+            if (colon_pos == std::string::npos)
+            {
+                printf("[W3MP NETWORK] ERROR: Invalid address format (expected IP:Port)\n");
+                return false;
+            }
+
+            const std::string ip = address_string.substr(0, colon_pos);
+            const int port = std::stoi(address_string.substr(colon_pos + 1));
+
+            if (port < 1 || port > 65535)
+            {
+                printf("[W3MP NETWORK] ERROR: Invalid port number (%d)\n", port);
+                return false;
+            }
+
+            const address target_address(ip.c_str(), port);
+            return connect(target_address);
+        }
+        catch (const std::exception& e)
+        {
+            printf("[W3MP NETWORK] ERROR: Failed to parse address: %s\n", e.what());
+            return false;
+        }
+    }
+
+    bool connect(const address& target_address)
+    {
+        printf("[W3MP NETWORK] Connecting to %s:%d\n", target_address.get_address().c_str(), target_address.get_port());
+
+        return true;
     }
 
     struct component final : component_interface

@@ -23,10 +23,10 @@ namespace scaling
 
     struct scaling_config
     {
-        float health_multiplier{1.0f};        // Health multiplier for this NPC
-        float damage_multiplier{1.0f};        // Damage multiplier for boss NPCs
-        bool is_boss{false};                  // Boss NPCs get damage bonus
-        int32_t party_count{1};               // Current party size
+        float health_multiplier{1.0f}; // Health multiplier for this NPC
+        float damage_multiplier{1.0f}; // Damage multiplier for boss NPCs
+        bool is_boss{false};           // Boss NPCs get damage bonus
+        int32_t party_count{1};        // Current party size
     };
 
     // ---------------------------------------------------------------------------
@@ -37,7 +37,7 @@ namespace scaling
 
     class scaling_manager
     {
-    public:
+      public:
         // -----------------------------------------------------------------------
         // CALCULATE HEALTH MULTIPLIER
         // -----------------------------------------------------------------------
@@ -96,7 +96,7 @@ namespace scaling
         {
             if (party_count <= 1)
             {
-                return std::nullopt;  // No scaling needed for single player
+                return std::nullopt; // No scaling needed for single player
             }
 
             const float multiplier = calculate_health_multiplier(party_count);
@@ -113,7 +113,7 @@ namespace scaling
         {
             if (party_count <= 1 || !is_boss)
             {
-                return std::nullopt;  // No scaling needed
+                return std::nullopt; // No scaling needed
             }
 
             const float multiplier = calculate_damage_multiplier(party_count, is_boss);

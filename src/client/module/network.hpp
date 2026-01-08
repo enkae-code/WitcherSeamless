@@ -13,4 +13,7 @@ namespace network
     bool send_data(const address& address, const std::string& data);
 
     const address& get_master_server();
+
+    bool connect(const std::string& address_string);
+    bool connect(const address& target_address);
 }

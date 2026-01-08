@@ -18,9 +18,9 @@ namespace quest_sync
     // Global story lock prevents local actions during primary player cutscenes.
     // ===========================================================================
 
-    constexpr uint32_t NARRATIVE_PROXIMITY_RADIUS = 30;  // Meters for dialogue teleportation
+    constexpr uint32_t NARRATIVE_PROXIMITY_RADIUS = 30; // Meters for dialogue teleportation
     constexpr size_t MAX_FACT_NAME_LENGTH = 128;
-    constexpr size_t FACT_CACHE_SIZE_LIMIT = 1024;  // Maximum cached facts to prevent bloat
+    constexpr size_t FACT_CACHE_SIZE_LIMIT = 1024; // Maximum cached facts to prevent bloat
 
     // ---------------------------------------------------------------------------
     // QUEST FACT STRUCTURE
@@ -32,8 +32,8 @@ namespace quest_sync
         std::string fact_name{};
         int32_t value{0};
         uint64_t timestamp{0};
-        uint64_t player_guid{0};  // Player who triggered this fact
-        uint32_t fact_hash{0};    // Hash for fast comparison
+        uint64_t player_guid{0}; // Player who triggered this fact
+        uint32_t fact_hash{0};   // Hash for fast comparison
     };
 
     // ---------------------------------------------------------------------------
@@ -42,12 +42,12 @@ namespace quest_sync
 
     enum class narrative_event_type : uint8_t
     {
-        dialogue_start = 0,      // Player entered dialogue
-        dialogue_end = 1,        // Player exited dialogue
-        cutscene_start = 2,      // Cutscene playback started
-        cutscene_end = 3,        // Cutscene playback ended
-        quest_objective = 4,     // Quest objective updated
-        fact_changed = 5         // World fact changed
+        dialogue_start = 0,  // Player entered dialogue
+        dialogue_end = 1,    // Player exited dialogue
+        cutscene_start = 2,  // Cutscene playback started
+        cutscene_end = 3,    // Cutscene playback ended
+        quest_objective = 4, // Quest objective updated
+        fact_changed = 5     // World fact changed
     };
 
     // ---------------------------------------------------------------------------
@@ -58,7 +58,7 @@ namespace quest_sync
 
     class global_story_lock
     {
-    public:
+      public:
         global_story_lock() = default;
 
         // -----------------------------------------------------------------------
@@ -77,8 +77,7 @@ namespace quest_sync
             m_scene_id.store(scene_id);
             m_lock_timestamp.store(std::chrono::high_resolution_clock::now().time_since_epoch().count());
 
-            printf("[W3MP NARRATIVE] Story lock ACQUIRED: Initiator=%llu, Scene=%u\n",
-                   initiator_guid, scene_id);
+            printf("[W3MP NARRATIVE] Story lock ACQUIRED: Initiator=%llu, Scene=%u\n", initiator_guid, scene_id);
         }
 
         void release_lock()
@@ -95,8 +94,7 @@ namespace quest_sync
             m_initiator_guid.store(0);
             m_scene_id.store(0);
 
-            printf("[W3MP NARRATIVE] Story lock RELEASED: Initiator=%llu, Scene=%u\n",
-                   initiator, scene);
+            printf("[W3MP NARRATIVE] Story lock RELEASED: Initiator=%llu, Scene=%u\n", initiator, scene);
         }
 
         bool is_locked() const
@@ -119,7 +117,7 @@ namespace quest_sync
             return m_lock_timestamp.load();
         }
 
-    private:
+      private:
         std::atomic<bool> m_lock_active{false};
         std::atomic<uint64_t> m_initiator_guid{0};
         std::atomic<uint32_t> m_scene_id{0};
@@ -134,7 +132,7 @@ namespace quest_sync
 
     class quest_fact_manager
     {
-    public:
+      public:
         quest_fact_manager() = default;
 
         // -----------------------------------------------------------------------
@@ -161,8 +159,8 @@ namespace quest_sync
                 prune_oldest_facts();
             }
 
-            printf("[W3MP NARRATIVE] Fact registered: %s = %d (hash: %u, player: %llu)\n",
-                   fact_name.c_str(), value, fact_hash, player_guid);
+            printf("[W3MP NARRATIVE] Fact registered: %s = %d (hash: %u, player: %llu)\n", fact_name.c_str(), value, fact_hash,
+                   player_guid);
         }
 
         // -----------------------------------------------------------------------
@@ -261,7 +259,7 @@ namespace quest_sync
             return m_fact_cache.size();
         }
 
-    private:
+      private:
         // -----------------------------------------------------------------------
         // CACHE PRUNING
         // -----------------------------------------------------------------------
@@ -282,8 +280,7 @@ namespace quest_sync
                 fact_ages.emplace_back(hash, fact.timestamp);
             }
 
-            std::sort(fact_ages.begin(), fact_ages.end(),
-                     [](const auto& a, const auto& b) { return a.second < b.second; });
+            std::sort(fact_ages.begin(), fact_ages.end(), [](const auto& a, const auto& b) { return a.second < b.second; });
 
             const size_t prune_count = m_fact_cache.size() - static_cast<size_t>(FACT_CACHE_SIZE_LIMIT * 0.75);
 
@@ -306,7 +303,7 @@ namespace quest_sync
 
     class dialogue_proximity_manager
     {
-    public:
+      public:
         dialogue_proximity_manager() = default;
 
         // -----------------------------------------------------------------------
@@ -347,8 +344,8 @@ namespace quest_sync
 
             m_pending_teleports[player_guid] = request;
 
-            printf("[W3MP NARRATIVE] Teleport requested for player %llu to (%.2f, %.2f, %.2f)\n",
-                   player_guid, target_position[0], target_position[1], target_position[2]);
+            printf("[W3MP NARRATIVE] Teleport requested for player %llu to (%.2f, %.2f, %.2f)\n", player_guid, target_position[0],
+                   target_position[1], target_position[2]);
         }
 
         bool has_pending_teleport(uint64_t player_guid) const
@@ -363,7 +360,7 @@ namespace quest_sync
             m_pending_teleports.erase(player_guid);
         }
 
-    private:
+      private:
         struct teleport_request
         {
             uint64_t player_guid{0};

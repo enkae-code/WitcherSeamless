@@ -72,8 +72,8 @@ void InitializeWitcherSeamless()
         W3mLog("Version: Production Build (Ultimate ASI Loader)");
         W3mLog("Hook: d3d11.dll -> scripting_experiments.dll");
 
-        MessageBoxA(nullptr, "WitcherSeamless loaded successfully!\nCheck W3M_Debug.log for details.",
-                   "WitcherSeamless - Success", MB_ICONINFORMATION);
+        MessageBoxA(nullptr, "WitcherSeamless loaded successfully!\nCheck W3M_Debug.log for details.", "WitcherSeamless - Success",
+                    MB_ICONINFORMATION);
     }
     catch (const std::exception& e)
     {
@@ -135,34 +135,36 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 
     switch (ul_reason_for_call)
     {
-    case DLL_PROCESS_ATTACH:
-        {
-            // Disable thread library calls for performance
-            DisableThreadLibraryCalls(hModule);
-            W3mLog("Thread library calls disabled");
+    case DLL_PROCESS_ATTACH: {
+        // Disable thread library calls for performance
+        DisableThreadLibraryCalls(hModule);
+        W3mLog("Thread library calls disabled");
 
-            // Initialize on a separate thread to avoid blocking the loader
-            W3mLog("Creating initialization thread...");
-            HANDLE hThread = CreateThread(nullptr, 0, [](LPVOID) -> DWORD {
+        // Initialize on a separate thread to avoid blocking the loader
+        W3mLog("Creating initialization thread...");
+        HANDLE hThread = CreateThread(
+            nullptr, 0,
+            [](LPVOID) -> DWORD {
                 W3mLog("Initialization thread started");
                 InitializeWitcherSeamless();
                 W3mLog("Initialization thread complete");
                 return 0;
-            }, nullptr, 0, nullptr);
+            },
+            nullptr, 0, nullptr);
 
-            if (hThread == nullptr)
-            {
-                W3mLog("ERROR: Failed to create initialization thread!");
-            }
-            else
-            {
-                W3mLog("Initialization thread created successfully");
-                CloseHandle(hThread);
-            }
-
-            W3mLog("=== DLL_PROCESS_ATTACH END ===");
+        if (hThread == nullptr)
+        {
+            W3mLog("ERROR: Failed to create initialization thread!");
         }
-        break;
+        else
+        {
+            W3mLog("Initialization thread created successfully");
+            CloseHandle(hThread);
+        }
+
+        W3mLog("=== DLL_PROCESS_ATTACH END ===");
+    }
+    break;
 
     case DLL_PROCESS_DETACH:
         W3mLog("=== DLL_PROCESS_DETACH BEGIN ===");

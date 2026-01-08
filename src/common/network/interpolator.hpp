@@ -23,8 +23,8 @@ namespace network::interpolation
     // ===========================================================================
 
     constexpr size_t SNAPSHOT_BUFFER_SIZE = 3;
-    constexpr uint64_t INTERPOLATION_DELAY_MS = 100;  // Render delay for smoothing
-    constexpr uint64_t RECOVERY_BLEND_DURATION_MS = 500;  // 0.5 second visual recovery blend
+    constexpr uint64_t INTERPOLATION_DELAY_MS = 100;     // Render delay for smoothing
+    constexpr uint64_t RECOVERY_BLEND_DURATION_MS = 500; // 0.5 second visual recovery blend
 
     // ---------------------------------------------------------------------------
     // SNAPSHOT STRUCTURE
@@ -46,7 +46,7 @@ namespace network::interpolation
 
     class player_interpolator
     {
-    public:
+      public:
         player_interpolator() = default;
 
         // -----------------------------------------------------------------------
@@ -96,7 +96,8 @@ namespace network::interpolation
             for (size_t i = 0; i < snapshot_count_; i++)
             {
                 const auto& snap = snapshots_[i];
-                if (!snap.valid) continue;
+                if (!snap.valid)
+                    continue;
 
                 if (snap.timestamp <= render_time)
                 {
@@ -121,16 +122,14 @@ namespace network::interpolation
             }
 
             // LERP between older and newer snapshots
-            const auto time_diff = std::chrono::duration_cast<std::chrono::milliseconds>(
-                newer->timestamp - older->timestamp).count();
+            const auto time_diff = std::chrono::duration_cast<std::chrono::milliseconds>(newer->timestamp - older->timestamp).count();
 
             if (time_diff == 0)
             {
-                return older->state;  // Avoid division by zero
+                return older->state; // Avoid division by zero
             }
 
-            const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-                render_time - older->timestamp).count();
+            const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(render_time - older->timestamp).count();
 
             const float t = static_cast<float>(elapsed) / static_cast<float>(time_diff);
             const float clamped_t = std::clamp(t, 0.0f, 1.0f);
@@ -187,8 +186,7 @@ namespace network::interpolation
                 return most_recent;
             }
 
-            const auto age_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                now - latest_snapshot->timestamp).count();
+            const auto age_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - latest_snapshot->timestamp).count();
 
             constexpr int64_t EXTRAPOLATION_THRESHOLD_MS = 100;
 
@@ -214,7 +212,8 @@ namespace network::interpolation
 
             for (const auto& snap : snapshots_)
             {
-                if (!snap.valid) continue;
+                if (!snap.valid)
+                    continue;
 
                 if (!latest || snap.timestamp > latest->timestamp)
                 {
@@ -251,7 +250,8 @@ namespace network::interpolation
 
             for (const auto& snap : snapshots_)
             {
-                if (!snap.valid) continue;
+                if (!snap.valid)
+                    continue;
 
                 if (!most_recent || snap.timestamp > most_recent->timestamp)
                 {
@@ -267,7 +267,7 @@ namespace network::interpolation
             return std::nullopt;
         }
 
-    private:
+      private:
         std::optional<player_state_packet> handle_extrapolation()
         {
             auto extrapolated = get_extrapolated_position();
@@ -354,8 +354,10 @@ namespace network::interpolation
             float diff = b - a;
 
             // Normalize to [-180, 180]
-            while (diff > 180.0f) diff -= 360.0f;
-            while (diff < -180.0f) diff += 360.0f;
+            while (diff > 180.0f)
+                diff -= 360.0f;
+            while (diff < -180.0f)
+                diff += 360.0f;
 
             return a + diff * t;
         }

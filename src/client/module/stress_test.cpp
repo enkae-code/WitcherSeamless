@@ -312,7 +312,7 @@ namespace stress_test
 
         class component final : public component_interface
         {
-        public:
+          public:
             void post_load() override
             {
                 W3mLog("=== REGISTERING STRESS TEST FUNCTIONS ===");
@@ -328,9 +328,7 @@ namespace stress_test
 
                 W3mLog("Registered 8 stress test functions");
 
-                scheduler::loop([] {
-                    process_delayed_packets();
-                }, scheduler::pipeline::async, std::chrono::milliseconds(10));
+                scheduler::loop([] { process_delayed_packets(); }, scheduler::pipeline::async, std::chrono::milliseconds(10));
 
                 printf("[W3MP CHAOS] Stress test manager initialized\n");
             }

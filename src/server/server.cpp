@@ -143,8 +143,8 @@ namespace
     // TRUE CO-OP BROADCAST HANDLERS - Quest/Combat/Cutscene Sync
     // ===========================================================================
 
-    void handle_fact_broadcast(const network::manager& manager, server::client_map& clients,
-                              const network::address& source, const std::string_view& data)
+    void handle_fact_broadcast(const network::manager& manager, server::client_map& clients, const network::address& source,
+                               const std::string_view& data)
     {
         utils::buffer_deserializer buffer(data);
         const auto protocol = buffer.read<uint32_t>();
@@ -174,8 +174,8 @@ namespace
         }
     }
 
-    void handle_attack_broadcast(const network::manager& manager, server::client_map& clients,
-                                const network::address& source, const std::string_view& data)
+    void handle_attack_broadcast(const network::manager& manager, server::client_map& clients, const network::address& source,
+                                 const std::string_view& data)
     {
         utils::buffer_deserializer buffer(data);
         const auto protocol = buffer.read<uint32_t>();
@@ -205,8 +205,8 @@ namespace
         }
     }
 
-    void handle_cutscene_broadcast(const network::manager& manager, server::client_map& clients,
-                                  const network::address& /* source */, const std::string_view& data)
+    void handle_cutscene_broadcast(const network::manager& manager, server::client_map& clients, const network::address& /* source */,
+                                   const std::string_view& data)
     {
         utils::buffer_deserializer buffer(data);
         const auto protocol = buffer.read<uint32_t>();

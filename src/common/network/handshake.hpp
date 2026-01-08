@@ -11,9 +11,9 @@ namespace network::protocol
         uint8_t protocol_version{};
         char player_name[32]{};
     };
-    
+
     using W3mHandshakePacket = handshake_packet;
-    
+
     enum class handshake_status : uint8_t
     {
         pending = 0,
