@@ -75,12 +75,12 @@ if(MSVC)
   )
 endif()
 
-# Create data symlink for development
-add_custom_command(
-  TARGET scripting_experiments
-  POST_BUILD
-  COMMAND "${CMAKE_COMMAND}" -E create_symlink "${PROJECT_SOURCE_DIR}/data/" "${CMAKE_BINARY_DIR}/artifacts-release/data"
-)
+# Ensure the artifacts directory exists first
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/artifacts-release")
+
+# Use COPY instead of CREATE_SYMLINK to avoid Windows permission issues
+# This ensures 'data' is physically present in the release folder
+file(COPY "${CMAKE_SOURCE_DIR}/data" DESTINATION "${CMAKE_BINARY_DIR}/artifacts-release")
 
 # Set as startup project for debugging
 set_property(GLOBAL PROPERTY VS_STARTUP_PROJECT scripting_experiments)
