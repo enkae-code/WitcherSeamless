@@ -67,8 +67,7 @@ namespace scripting
             detail::read_script_argument(ctx, &damage);
             detail::read_script_argument(ctx, &target_tag_id);
 
-            W3mLog("COMBAT BRIDGE: W3mSendAttack called - TargetTag={}, Damage={:.2f}, AttackType={}", target_tag_id, damage,
-                     attack_type);
+            W3mLog("COMBAT BRIDGE: W3mSendAttack called - TargetTag={}, Damage={:.2f}, AttackType={}", target_tag_id, damage, attack_type);
         }
 
         void register_script_functions_stub()

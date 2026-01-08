@@ -656,7 +656,8 @@ namespace scripting_experiments
                 network::send(network::get_master_server(), "handshake", buffer.get_buffer());
             }
 
-            printf("[W3MP HANDSHAKE] Broadcasting: ID=%llu (hash of %s), Player=%s\n", session_id, session_id_std.c_str(), local_name.c_str());
+            printf("[W3MP HANDSHAKE] Broadcasting: ID=%llu (hash of %s), Player=%s\n", session_id, session_id_std.c_str(),
+                   local_name.c_str());
         }
 
         void W3mBroadcastAchievement(const scripting::string& achievement_id)
