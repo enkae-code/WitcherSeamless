@@ -97,7 +97,8 @@ namespace scripting_experiments
         void receive_achievement_safe(const network::address& address, const std::string_view& data);
         void receive_heartbeat_safe(const network::address& address, const std::string_view& data);
         void receive_attack_safe(const network::address& address, const std::string_view& data);
-        
+        void receive_fact_safe(const network::address& address, const std::string_view& data);
+
         // ===================================================================
         // NATIVE UI CLASS - CDPR HEX CODES
         // ===================================================================
@@ -569,7 +570,22 @@ namespace scripting_experiments
                        static_cast<int32_t>(packet.type));
             });
         }
-        
+
+        void receive_fact_safe(const network::address& address, const std::string_view& data)
+        {
+            g_telemetry.increment_received();
+            receive_packet_safe("FACT", address, data, [](const network::address& /* addr */, const std::string_view& data) {
+                utils::buffer_deserializer buffer(data);
+                buffer.read<uint32_t>(); // Skip protocol
+
+                const auto packet = buffer.read<network::protocol::W3mFactPacket>();
+                const auto fact_name = network::protocol::extract_string(packet.fact_name);
+
+                printf("[W3MP NARRATIVE] Received fact: %s = %d (timestamp: %llu)\n",
+                       fact_name.c_str(), packet.value, packet.timestamp);
+            });
+        }
+
         // ===================================================================
         // BRIDGE FUNCTIONS - WITCHERSCRIPT CALLABLE
         // ===================================================================
@@ -1108,6 +1124,7 @@ namespace scripting_experiments
                 network::on("handshake", &receive_handshake_safe);
                 network::on("player_state", &receive_player_state_safe);
                 network::on("attack", &receive_attack_safe);
+                network::on("fact", &receive_fact_safe);
                 
                 // 5-second Reconciliation Heartbeat
                 scheduler::loop([] {
