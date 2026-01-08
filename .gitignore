@@ -45,3 +45,16 @@ Win32/
 
 # --- Special Files ---
 nul
+
+/scripts_mod/
+/scripts_redkit/
+/r4game_config/
+
+
+# AI / Tooling Context (Private)
+CLAUDE.md
+GEMINI.md
+.windsurfrules
+/redkit_scripts/
+/r4game_config/
+
