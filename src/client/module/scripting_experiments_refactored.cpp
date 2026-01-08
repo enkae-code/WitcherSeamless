@@ -30,11 +30,11 @@
 #include <mutex>
 
 // Alpha session ID stubs
-inline uint64_t EncodeSessionID(uint64_t id)
+inline std::string EncodeSessionID(const std::string& id)
 {
     return id;
 }
-inline uint64_t DecodeSessionID(uint64_t id)
+inline std::string DecodeSessionID(const std::string& id)
 {
     return id;
 }
@@ -625,8 +625,12 @@ namespace scripting_experiments
             printf("[W3MP SESSION] Broadcasting state: %s (scene %d)\n", packet.is_locked ? "SPECTATOR" : "FREE_ROAM", scene_id);
         }
 
-        void W3mInitiateHandshake(const uint64_t session_id)
+        void W3mInitiateHandshake(const scripting::string& session_id_str)
         {
+            const auto session_id_std = session_id_str.to_string();
+            // Hash string to uint64_t for packet compatibility
+            uint64_t session_id = std::hash<std::string>{}(session_id_std);
+
             network::protocol::W3mHandshakePacket packet{};
             packet.session_id = session_id;
             packet.player_guid = static_cast<uint32_t>(utils::identity::get_guid());
@@ -652,7 +656,7 @@ namespace scripting_experiments
                 network::send(network::get_master_server(), "handshake", buffer.get_buffer());
             }
 
-            printf("[W3MP HANDSHAKE] Broadcasting: ID=%llu, Player=%s\n", session_id, local_name.c_str());
+            printf("[W3MP HANDSHAKE] Broadcasting: ID=%llu (hash of %s), Player=%s\n", session_id, session_id_std.c_str(), local_name.c_str());
         }
 
         void W3mBroadcastAchievement(const scripting::string& achievement_id)
@@ -712,7 +716,7 @@ namespace scripting_experiments
 
         void copy_session_ip()
         {
-            std::string session_info = EncodeSessionID();
+            std::string session_info = EncodeSessionID("127.0.0.1:12345"); // Default/Example
 
             if (OpenClipboard(nullptr))
             {
@@ -759,8 +763,7 @@ namespace scripting_experiments
             network::address server_addr(ip.c_str(), port);
             network::connect(server_addr);
 
-            uint64_t temp_session_id = utils::identity::get_guid();
-            W3mInitiateHandshake(temp_session_id);
+            W3mInitiateHandshake(session_id_str);
 
             printf("[W3MP SESSION] Attempting to join session at %s:%d\n", ip.c_str(), port);
         }

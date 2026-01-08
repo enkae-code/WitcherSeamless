@@ -67,7 +67,7 @@ namespace scripting
             detail::read_script_argument(ctx, &damage);
             detail::read_script_argument(ctx, &target_tag_id);
 
-            LOG_INFO("COMBAT BRIDGE: W3mSendAttack called - TargetTag={}, Damage={:.2f}, AttackType={}", target_tag_id, damage,
+            W3mLog("COMBAT BRIDGE: W3mSendAttack called - TargetTag={}, Damage={:.2f}, AttackType={}", target_tag_id, damage,
                      attack_type);
         }
 
@@ -84,7 +84,7 @@ namespace scripting
             registration_vector.clear();
 
             // Register W3mSendAttack combat bridge function
-            perform_script_function_registration(L"W3mSendAttack", script_w3m_send_attack);
+            perform_script_function_registration(L"W3mSendAttack", reinterpret_cast<game::script_function*>(script_w3m_send_attack));
         }
     }
 

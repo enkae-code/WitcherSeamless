@@ -98,23 +98,31 @@ jobs:
       - name: Build
         run: cmake --build --preset ${{ matrix.preset }}
 
-      - name: List build directory (Debug)
+      - name: List build directory (Debug Windows)
+        if: runner.os == 'Windows'
         run: dir /s build\release
         shell: cmd
 
+      - name: List build directory (Debug Linux)
+        if: runner.os == 'Linux'
+        run: ls -R build/release
+        shell: bash
+
       - name: Upload Windows Artifacts
+        if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
         with:
           name: artifacts-windows
+          path: build/**/*.dll # Finds W3m.dll anywhere in build/
           if-no-files-found: error
-          path: build/**/artifacts-release/* # Use a double wildcard to find the folder anywhere in build/
 
       - name: Upload Linux Artifacts
+        if: runner.os == 'Linux'
         uses: actions/upload-artifact@v4
         with:
           name: artifacts-linux
+          path: build/**/artifacts/* # Finds the Linux server artifacts
           if-no-files-found: error
-          path: build/**/artifacts-release/* # Same for Linux
 
   release:
     name: Draft Release (tagged builds)
@@ -140,8 +148,18 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $bundle = Join-Path $PWD 'release_bundle'
           New-Item -ItemType Directory -Force -Path $bundle | Out-Null
-          Copy-Item -Force "artifacts/windows/artifacts-release/scripting_experiments.dll" (Join-Path $bundle 'W3m.dll')
-          Copy-Item -Force "artifacts/windows/artifacts-release/scripting_experiments.pdb" (Join-Path $bundle 'W3m.pdb')
+          
+          # Robust search for the artifacts
+          $dll = Get-ChildItem -Path "artifacts/windows" -Filter "scripting_experiments.dll" -Recurse | Select-Object -First 1
+          $pdb = Get-ChildItem -Path "artifacts/windows" -Filter "scripting_experiments.pdb" -Recurse | Select-Object -First 1
+          
+          if ($null -eq $dll) { throw "Could not find scripting_experiments.dll in artifacts" }
+          
+          Copy-Item -Force $dll.FullName (Join-Path $bundle 'W3m.dll')
+          if ($null -ne $pdb) {
+              Copy-Item -Force $pdb.FullName (Join-Path $bundle 'W3m.pdb')
+          }
+          
           Copy-Item -Force -Recurse "src/scripts" (Join-Path $bundle 'scripts')
           Compress-Archive -Path (Join-Path $bundle '*') -DestinationPath "WitcherSeamless-${{ github.ref_name }}.zip" -Force
 
