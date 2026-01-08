@@ -39,7 +39,7 @@ namespace network
 
     const address& get_master_server()
     {
-        static const address master{"server.momo5502.com:28960"};
+        static const address master{"127.0.0.1:28960"};  // Local development server
         return master;
     }
 
