@@ -1,8 +1,12 @@
 # --- Witcher3Seamless CORE ---
-build/
-bin/
-out/
-legacy_archive/
+/build*/
+/bin/
+/deps/
+/r4game/
+/mods/
+/scripts/
+/out/
+/legacy_archive/
 *.log
 *.bak
 *.tmp
@@ -38,21 +42,6 @@ CMakeCache.txt
 CMakeFiles/
 CMakePresets.json
 Win32/
-\# --- Special Files ---
+
+# --- Special Files ---
 nul
-
-
-build/
-build*/
-.vs/
-bin/
-artifacts*/
-
-/r4game/
-/mods/
-/scripts/
-build*/
-.vs/
-deps/
-bin/
-artifacts*/
