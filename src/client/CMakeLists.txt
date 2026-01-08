@@ -78,9 +78,10 @@ endif()
 # Ensure the artifacts directory exists first
 file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/artifacts-release")
 
-# Use COPY instead of CREATE_SYMLINK to avoid Windows permission issues
-# This ensures 'data' is physically present in the release folder
-file(COPY "${CMAKE_SOURCE_DIR}/data" DESTINATION "${CMAKE_BINARY_DIR}/artifacts-release")
+# Only attempt to copy if the data directory actually exists to avoid build failures
+if(EXISTS "${CMAKE_SOURCE_DIR}/data")
+    file(COPY "${CMAKE_SOURCE_DIR}/data" DESTINATION "${CMAKE_BINARY_DIR}/artifacts-release")
+endif()
 
 # Set as startup project for debugging
 set_property(GLOBAL PROPERTY VS_STARTUP_PROJECT scripting_experiments)
