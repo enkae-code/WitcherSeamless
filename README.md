@@ -1,6 +1,11 @@
-# WitcherSeamless v0.1.0-alpha
-
 A high-velocity, native C++ co-op engine for The Witcher 3 (DX12). Built for zero-bloat performance and high-fidelity state synchronization.
+<p align="center">
+  <img src="assets/geralt-meme.png" alt="WitcherSeamless: The Grand Resurgence Meme" width="650">
+  <br>
+  <i>"When the co-op logic is so atomic, even Geralt can't tell who's the original."</i>
+</p>
+
+# WitcherSeamless v0.1.0-alpha
 
 ## ⚡ Architectural Pillars
 - **Zero-Jank Input**: Event-driven `WH_GETMESSAGE` hooks bypass the standard engine polling for instant UI response.
