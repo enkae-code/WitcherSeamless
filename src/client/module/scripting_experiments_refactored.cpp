@@ -28,6 +28,16 @@
 
 #include <queue>
 #include <mutex>
+
+// Alpha session ID stubs
+inline uint64_t EncodeSessionID(uint64_t id)
+{
+    return id;
+}
+inline uint64_t DecodeSessionID(uint64_t id)
+{
+    return id;
+}
 #include <chrono>
 #include <sstream>
 #include <iomanip>
@@ -802,12 +812,12 @@ namespace scripting_experiments
                 player.guid = guid;
 
                 scripting::array<W3mPlayerState> states_array{};
-                states_array.add(state);
+                states_array.push_back(state);
                 player.state = states_array;
 
                 player.name = scripting::string(get_player_name(guid).c_str());
 
-                players_array.add(player);
+                players_array.push_back(player);
             }
 
             return players_array;

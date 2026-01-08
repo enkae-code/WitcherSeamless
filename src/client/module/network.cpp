@@ -76,7 +76,7 @@ namespace network
 
     bool connect(const address& target_address)
     {
-        printf("[W3MP NETWORK] Connecting to %s:%d\n", target_address.get_address().c_str(), target_address.get_port());
+        printf("[W3MP NETWORK] Connecting to %s:%d\n", target_address.to_string().c_str(), target_address.get_port());
 
         return true;
     }
