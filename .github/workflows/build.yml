@@ -1,148 +1,139 @@
-name: Build
+name: Build & Verify
 
 on:
   push:
     branches:
-      - "**"
+      - main
+    tags:
+      - "v*"
   pull_request:
     branches:
-      - "**"
-    types: [opened, synchronize, reopened]
-    
+      - "*"
+
 concurrency:
   group: ${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+
 jobs:
-  verify-formatting:
-    name: Verify Formatting
-    runs-on: ubuntu-24.04
+  clang-format:
+    name: Clang-Format Gate
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout Source
-        uses: actions/checkout@v6
+      - name: Checkout source
+        uses: actions/checkout@v4
 
-      - name: Verify Formatting
-        uses: jidicula/clang-format-action@v4.16.0
-        with:
-          clang-format-version: "20"
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
 
-  build-windows:
-    name: Build Windows
-    runs-on: windows-latest
+      - name: Validate formatting
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILES=$(git ls-files '*.c' '*.cc' '*.cpp' '*.cxx' '*.h' '*.hpp' '*.hxx')
+          if [ -z "$FILES" ]; then
+            echo "No C/C++ sources detected."
+            exit 0
+          fi
+          clang-format --version
+          echo "$FILES" | xargs -n 32 clang-format --dry-run --Werror
+
+  build:
+    name: Matrix Build
+    needs: clang-format
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        configuration:
-          - Debug
-          - Release
         include:
-          - configuration: Debug
-            preset: debug
-          - configuration: Release
+          - os: windows-latest
             preset: release
+            artifact-label: windows
+          - os: ubuntu-latest
+            preset: release
+            artifact-label: linux
     steps:
-      - name: Checkout Source
-        uses: actions/checkout@v6
+      - name: Checkout source with deps
+        uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Enable Developer Command Prompt
+      - name: Install CMake and Ninja
+        uses: lukka/get-cmake@v3.29.5
+
+      - name: Install build prerequisites (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build pkg-config
+
+      - name: Install Ninja (Windows)
+        if: runner.os == 'Windows'
+        uses: seanmiddleditch/gha-setup-ninja@v4
+
+      - name: Enable MSVC environment
+        if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1.13.0
 
-      - name: CMake Build
-        run: cmake --workflow --preset=${{matrix.preset}}
-
-      - name: Upload Binary
-        uses: actions/upload-artifact@v6
+      - name: Prime CMake cache
+        uses: actions/cache@v4
         with:
-          name: Windows ${{matrix.configuration}} Binaries
-          path: |
-            build/${{matrix.preset}}/artifacts/w3m.exe
-            build/${{matrix.preset}}/artifacts/w3m.pdb
-            build/${{matrix.preset}}/artifacts/server.exe
-            build/${{matrix.preset}}/artifacts/server.pdb
+          path: build/${{ matrix.preset }}
+          key: cmake-${{ matrix.os }}-${{ matrix.preset }}-${{ hashFiles('CMakePresets.json', 'CMakeLists.txt', 'src/**/CMakeLists.txt') }}
+          restore-keys: |
+            cmake-${{ matrix.os }}-${{ matrix.preset }}-
 
-      - name: Upload Data Artifacts
-        uses: actions/upload-artifact@v6
+      - name: Configure
+        run: cmake --preset ${{ matrix.preset }}
+
+      - name: Build
+        run: cmake --build --preset ${{ matrix.preset }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
         with:
-          name: Windows ${{matrix.configuration}} Data Artifacts
+          name: artifacts-${{ matrix.artifact-label }}
+          if-no-files-found: error
           path: |
-            data/*
-    
-  build-linux:
-    name: Build Linux
+            build/${{ matrix.preset }}/artifacts-release/**
+
+  release:
+    name: Draft Release (tagged builds)
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        configuration:
-          - Debug
-          - Release
-        include:
-          - configuration: Debug
-            preset: debug
-          - configuration: Release
-            preset: release
     steps:
-      - name: Checkout Source
-        uses: actions/checkout@v6
+      - name: Checkout source
+        uses: actions/checkout@v4
         with:
-          submodules: recursive
           fetch-depth: 0
 
-      - name: CMake Build
-        run: cmake --workflow --preset=${{matrix.preset}}
-
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v6
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
         with:
-          name: Linux ${{matrix.configuration}} Artifacts
-          path: |
-            build/${{matrix.preset}}/artifacts/server
+          name: artifacts-windows
+          path: artifacts/windows
 
-  deploy:
-    name: Deploy Server
-    needs: [build-windows, build-linux, verify-formatting]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main')
-    steps:
-      - name: Download master server binary
-        uses: actions/download-artifact@v7
+      - name: Assemble release payload
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $bundle = Join-Path $PWD 'release_bundle'
+          New-Item -ItemType Directory -Force -Path $bundle | Out-Null
+          Copy-Item -Force "artifacts/windows/artifacts-release/scripting_experiments.dll" (Join-Path $bundle 'W3m.dll')
+          Copy-Item -Force "artifacts/windows/artifacts-release/scripting_experiments.pdb" (Join-Path $bundle 'W3m.pdb')
+          Copy-Item -Force -Recurse "src/scripts" (Join-Path $bundle 'scripts')
+          Compress-Archive -Path (Join-Path $bundle '*') -DestinationPath "WitcherSeamless-${{ github.ref_name }}.zip" -Force
+
+      - name: Publish draft release
+        uses: softprops/action-gh-release@v2
         with:
-          name: Linux Release Artifacts
-
-      - name: Download release data artifacts
-        uses: actions/download-artifact@v7
-        with:
-          name: Windows Release Data Artifacts
-          path: data
-
-      - name: Download release binaries
-        uses: actions/download-artifact@v7
-        with:
-          name: Windows Release Binaries
-
-      - name: Install SSH key
-        uses: shimataro/ssh-key-action@v2.7.0
-        with:
-          key: ${{ secrets.MOMO_SERVER_SSH_PRIVATE_KEY }}
-          known_hosts: "just-a-placeholder-so-we-dont-get-errors"
-
-      - name: Add known hosts
-        run: ssh-keyscan -H ${{ secrets.MOMO_SERVER_HOSTNAME }} >> ~/.ssh/known_hosts
-
-      - name: Upload Server Binary
-        run: rsync -avz server ${{ secrets.MOMO_SERVER_USER }}@${{ secrets.MOMO_SERVER_HOSTNAME }}:~/
-
-      - name: Remove old data
-        run: ssh ${{ secrets.MOMO_SERVER_USER }}@${{ secrets.MOMO_SERVER_HOSTNAME }} "rm -rf ${{ secrets.MOMO_SERVER_DATA_PATH }}/data/*"
-
-      - name: Upload Game Binary
-        run: rsync -avz w3m.exe ${{ secrets.MOMO_SERVER_USER }}@${{ secrets.MOMO_SERVER_HOSTNAME }}:${{ secrets.MOMO_SERVER_DATA_PATH }}/
-
-      - name: Upload Data Files
-        run: rsync -avz ./data/ ${{ secrets.MOMO_SERVER_USER }}@${{ secrets.MOMO_SERVER_HOSTNAME }}:${{ secrets.MOMO_SERVER_DATA_PATH }}/data/
-
-      - name: Publish changes
-        run: ssh ${{ secrets.MOMO_SERVER_USER }}@${{ secrets.MOMO_SERVER_HOSTNAME }} "${{ secrets.MOMO_SERVER_UPDATE_COMMAND }}"
+          draft: true
+          files: WitcherSeamless-${{ github.ref_name }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
