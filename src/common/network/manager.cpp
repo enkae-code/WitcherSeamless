@@ -66,11 +66,20 @@ namespace network
             });
         }
 
+        constexpr size_t MAX_PACKET_BYTES = 8 * 1024; // Hardened security budget
+
         void handle_data(const utils::concurrency::container<manager::callback_map>& callbacks, const address& source,
                          const std::string& packet)
         {
             constexpr int32_t magic = -1;
             constexpr auto magic_size = sizeof(magic);
+
+            if (packet.size() > MAX_PACKET_BYTES)
+            {
+                printf("Security: Dropping packet larger than %zu bytes (received %zu bytes)\n", MAX_PACKET_BYTES, packet.size());
+                (void)fflush(stdout);
+                return;
+            }
 
             if (packet.size() < (magic_size + 1) || memcmp(packet.data(), &magic, magic_size) != 0)
             {

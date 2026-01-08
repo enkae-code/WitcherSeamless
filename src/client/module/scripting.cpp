@@ -57,8 +57,6 @@ namespace scripting
             register_cfunction(*cfunction);
         }
 
-<<<<<<< HEAD
-=======
         void script_w3m_send_attack(game::script_execution_context& ctx)
         {
             int target_tag_id = 0;
@@ -74,7 +72,6 @@ namespace scripting
                      target_tag_id, damage, attack_type);
         }
 
->>>>>>> ecb0f82 (Fix build)
         void register_script_functions_stub()
         {
             reinterpret_cast<void (*)()>(0x141F36E90_g)();
@@ -86,12 +83,9 @@ namespace scripting
             }
 
             registration_vector.clear();
-<<<<<<< HEAD
-=======
 
             // Register W3mSendAttack combat bridge function
             perform_script_function_registration(L"W3mSendAttack", script_w3m_send_attack);
->>>>>>> ecb0f82 (Fix build)
         }
     }
 

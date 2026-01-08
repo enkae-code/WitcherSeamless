@@ -1,11 +1,18 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
+#include <cstring>
+#include <string>
+
 #include "../game/structs.hpp"
 
 namespace network::protocol
 {
+    using Vector = game::vec4_t;
+    using EulerAngles = game::vec3_t;
+
     // ===========================================================================
     // TRUE CO-OP PROTOCOL STRUCTURES
     // ===========================================================================
@@ -177,6 +184,8 @@ namespace network::protocol
         uint64_t timestamp{};          // Heartbeat timestamp
     };
 
+    constexpr size_t MAX_PLAYER_STATE_BINARY = 256;
+
     struct player_state_packet
     {
         uint64_t player_guid{};
@@ -185,6 +194,7 @@ namespace network::protocol
         Vector velocity{};
         int32_t move_type{};
         float speed{};
+        std::array<uint8_t, MAX_PLAYER_STATE_BINARY> binary_state{};  // Hardened binary state blob for anti-tamper validation
     };
 
     // ===========================================================================
@@ -193,9 +203,6 @@ namespace network::protocol
     // For WitcherScript integration and maintaining consistent naming
     // as requested by the architectural specification.
     // ===========================================================================
-
-    using Vector = game::vec4_t;
-    using EulerAngles = game::vec3_t;
 
     using W3mFactPacket = fact_packet;
     using W3mAttackPacket = attack_packet;
