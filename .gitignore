@@ -41,3 +41,9 @@ Win32/
 \# --- Special Files ---
 nul
 
+
+build/
+build*/
+.vs/
+bin/
+artifacts*/
