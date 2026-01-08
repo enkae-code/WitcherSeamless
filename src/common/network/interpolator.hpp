@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstdint>
@@ -23,6 +24,7 @@ namespace network::interpolation
 
     constexpr size_t SNAPSHOT_BUFFER_SIZE = 3;
     constexpr uint64_t INTERPOLATION_DELAY_MS = 100;  // Render delay for smoothing
+    constexpr uint64_t RECOVERY_BLEND_DURATION_MS = 500;  // 0.5 second visual recovery blend
 
     // ---------------------------------------------------------------------------
     // SNAPSHOT STRUCTURE
@@ -81,7 +83,7 @@ namespace network::interpolation
         {
             if (snapshot_count_ < 2)
             {
-                return std::nullopt;  // Need at least 2 snapshots for interpolation
+                return handle_extrapolation();
             }
 
             const auto now = steady_clock::now();
@@ -112,10 +114,10 @@ namespace network::interpolation
                 }
             }
 
-            // If we don't have both snapshots, use the most recent one
+            // If we don't have both snapshots, check for extrapolation
             if (!older || !newer)
             {
-                return get_most_recent_snapshot();
+                return handle_extrapolation();
             }
 
             // LERP between older and newer snapshots
@@ -156,7 +158,71 @@ namespace network::interpolation
             // LERP speed
             interpolated.speed = lerp(older->state.speed, newer->state.speed, clamped_t);
 
-            return interpolated;
+            auto result = apply_blend_if_needed(interpolated, now);
+            last_returned_state_ = result;
+            return result;
+        }
+
+        // -----------------------------------------------------------------------
+        // POSITION EXTRAPOLATION (DEAD RECKONING)
+        // -----------------------------------------------------------------------
+        // Predicts position when snapshots are missing or outdated (>100ms)
+        // Formula: predicted_pos = current_pos + (velocity * delta_time)
+        // Handles 3+ consecutive missed packets gracefully
+
+        std::optional<player_state_packet> get_extrapolated_position()
+        {
+            const auto most_recent = get_most_recent_snapshot();
+
+            if (!most_recent.has_value())
+            {
+                return std::nullopt;
+            }
+
+            const auto now = steady_clock::now();
+            const auto* latest_snapshot = get_latest_snapshot_ptr();
+
+            if (!latest_snapshot)
+            {
+                return most_recent;
+            }
+
+            const auto age_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                now - latest_snapshot->timestamp).count();
+
+            constexpr int64_t EXTRAPOLATION_THRESHOLD_MS = 100;
+
+            if (age_ms <= EXTRAPOLATION_THRESHOLD_MS)
+            {
+                return most_recent;
+            }
+
+            const float delta_time_seconds = static_cast<float>(age_ms - INTERPOLATION_DELAY_MS) / 1000.0f;
+
+            player_state_packet extrapolated = most_recent.value();
+
+            extrapolated.position.x += extrapolated.velocity.x * delta_time_seconds;
+            extrapolated.position.y += extrapolated.velocity.y * delta_time_seconds;
+            extrapolated.position.z += extrapolated.velocity.z * delta_time_seconds;
+
+            return extrapolated;
+        }
+
+        const snapshot* get_latest_snapshot_ptr() const
+        {
+            const snapshot* latest = nullptr;
+
+            for (const auto& snap : snapshots_)
+            {
+                if (!snap.valid) continue;
+
+                if (!latest || snap.timestamp > latest->timestamp)
+                {
+                    latest = &snap;
+                }
+            }
+
+            return latest;
         }
 
         // -----------------------------------------------------------------------
@@ -202,6 +268,77 @@ namespace network::interpolation
         }
 
     private:
+        std::optional<player_state_packet> handle_extrapolation()
+        {
+            auto extrapolated = get_extrapolated_position();
+            if (extrapolated)
+            {
+                in_extrapolation_ = true;
+                blend_active_ = false;
+                extrapolation_anchor_ = extrapolated;
+                last_returned_state_ = extrapolated;
+            }
+            return extrapolated;
+        }
+
+        player_state_packet apply_blend_if_needed(const player_state_packet& target_state, const time_point& now)
+        {
+            if (in_extrapolation_ && extrapolation_anchor_.has_value())
+            {
+                begin_blend(*extrapolation_anchor_, target_state, now);
+                in_extrapolation_ = false;
+            }
+
+            if (!blend_active_)
+            {
+                return target_state;
+            }
+
+            const auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - blend_start_time_).count();
+            const float t = std::clamp(static_cast<float>(elapsed_ms) / static_cast<float>(RECOVERY_BLEND_DURATION_MS), 0.0f, 1.0f);
+
+            blend_target_state_ = target_state;
+            auto blended = blend_packets(blend_start_state_, blend_target_state_, t);
+
+            if (elapsed_ms >= static_cast<int64_t>(RECOVERY_BLEND_DURATION_MS))
+            {
+                blend_active_ = false;
+                extrapolation_anchor_.reset();
+            }
+
+            return blended;
+        }
+
+        void begin_blend(const player_state_packet& from_state, const player_state_packet& to_state, const time_point& now)
+        {
+            blend_active_ = true;
+            blend_start_time_ = now;
+            blend_start_state_ = from_state;
+            blend_target_state_ = to_state;
+        }
+
+        static player_state_packet blend_packets(const player_state_packet& from, const player_state_packet& to, float t)
+        {
+            player_state_packet blended = from;
+            blended.position.x = lerp(from.position.x, to.position.x, t);
+            blended.position.y = lerp(from.position.y, to.position.y, t);
+            blended.position.z = lerp(from.position.z, to.position.z, t);
+            blended.position.w = lerp(from.position.w, to.position.w, t);
+
+            blended.angles.x = lerp_angle(from.angles.x, to.angles.x, t);
+            blended.angles.y = lerp_angle(from.angles.y, to.angles.y, t);
+            blended.angles.z = lerp_angle(from.angles.z, to.angles.z, t);
+
+            blended.velocity.x = lerp(from.velocity.x, to.velocity.x, t);
+            blended.velocity.y = lerp(from.velocity.y, to.velocity.y, t);
+            blended.velocity.z = lerp(from.velocity.z, to.velocity.z, t);
+            blended.velocity.w = lerp(from.velocity.w, to.velocity.w, t);
+
+            blended.speed = lerp(from.speed, to.speed, t);
+
+            return blended;
+        }
+
         // -----------------------------------------------------------------------
         // LINEAR INTERPOLATION HELPERS
         // -----------------------------------------------------------------------
@@ -230,5 +367,13 @@ namespace network::interpolation
         std::array<snapshot, SNAPSHOT_BUFFER_SIZE> snapshots_{};
         size_t write_index_{0};
         size_t snapshot_count_{0};
+
+        bool in_extrapolation_{false};
+        bool blend_active_{false};
+        time_point blend_start_time_{};
+        player_state_packet blend_start_state_{};
+        player_state_packet blend_target_state_{};
+        std::optional<player_state_packet> extrapolation_anchor_;
+        std::optional<player_state_packet> last_returned_state_;
     };
 }

@@ -123,14 +123,44 @@ namespace quest_sync
             printf("[W3MP NARRATIVE] Global sync IN PROGRESS (scene %u)\n", scene_id);
         }
 
-        void release_global_story_lock()
+        void release_global_story_lock(bool forced = false)
         {
+            const auto initiator_guid = g_story_lock.get_initiator_guid();
+            const auto scene_id = g_story_lock.get_scene_id();
+
             g_story_lock.release_lock();
             g_W3mGlobalSyncInProgress.store(false);
 
             flush_pending_facts();
 
-            printf("[W3MP NARRATIVE] Global sync COMPLETED\n");
+            network::protocol::W3mQuestLockPacket packet{};
+            packet.is_locked = false;
+            packet.scene_id = scene_id;
+            packet.player_guid = initiator_guid;
+            packet.timestamp = static_cast<uint32_t>(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+
+            utils::buffer_serializer buffer{};
+            buffer.write(game::PROTOCOL);
+            buffer.write(packet);
+
+            g_telemetry.increment_sent();
+            if (g_loopback_enabled)
+            {
+                receive_session_state_safe(network::get_master_server(), buffer.get_buffer());
+            }
+            else
+            {
+                network::send(network::get_master_server(), forced ? "story_lock_release_forced" : "quest_lock", buffer.get_buffer());
+            }
+
+            if (forced)
+            {
+                W3mLog("STORY LOCK FAIL-SAFE: Forced release broadcast (scene %u, initiator=%llu)", scene_id, initiator_guid);
+            }
+            else
+            {
+                printf("[W3MP NARRATIVE] Global sync COMPLETED\n");
+            }
         }
 
         bool is_global_sync_in_progress()
@@ -239,6 +269,36 @@ namespace quest_sync
         }
 
         // ===================================================================
+        // NARRATIVE FAIL-SAFE - TIMEOUT PROTECTION
+        // ===================================================================
+
+        constexpr uint64_t STORY_LOCK_TIMEOUT_MS = 15000;  // 15 seconds
+
+        void check_story_lock_timeout()
+        {
+            if (!g_story_lock.is_locked())
+            {
+                return;
+            }
+
+            const auto lock_timestamp = g_story_lock.get_lock_timestamp();
+            const auto now = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+            const auto elapsed_ms = (now - lock_timestamp) / 1000000;  // Convert nanoseconds to milliseconds
+
+            if (elapsed_ms > STORY_LOCK_TIMEOUT_MS)
+            {
+                const auto initiator_guid = g_story_lock.get_initiator_guid();
+                const auto scene_id = g_story_lock.get_scene_id();
+
+                printf("[W3MP NARRATIVE] FAIL-SAFE: Story lock timeout detected (initiator: %llu, scene: %u)\n",
+                       initiator_guid, scene_id);
+                printf("[W3MP NARRATIVE] FAIL-SAFE: Automatically releasing lock after %llu ms\n", elapsed_ms);
+
+                release_global_story_lock(true);
+            }
+        }
+
+        // ===================================================================
         // NARRATIVE HEARTBEAT
         // ===================================================================
 
@@ -249,6 +309,8 @@ namespace quest_sync
 
             printf("[W3MP NARRATIVE] Heartbeat: %zu facts, world_state_hash=%u\n",
                    fact_count, world_state_hash);
+
+            check_story_lock_timeout();
         }
 
         // ===================================================================
