@@ -8,6 +8,7 @@
 #include "../std_include.hpp"
 #include "../loader/component_loader.hpp"
 
+#include "input_manager.hpp"
 #include "scripting.hpp"
 #include "scheduler.hpp"
 
@@ -16,6 +17,7 @@
 #include <mutex>
 #include <string>
 #include <atomic>
+#include <functional>
 
 namespace input_manager
 {
@@ -31,6 +33,9 @@ namespace input_manager
 
         HHOOK g_message_hook{nullptr};
         HWND g_game_window{nullptr};
+
+        command_callback g_command_callback{nullptr};
+        std::mutex g_callback_mutex;
 
         // ===================================================================
         // INPUT BUFFER MANAGEMENT
@@ -128,7 +133,18 @@ namespace input_manager
 
                             if (msg->wParam == VK_RETURN)
                             {
-                                printf("[W3MP INPUT] Command submitted: %s\n", get_input_buffer().c_str());
+                                const std::string command = get_input_buffer();
+                                printf("[W3MP INPUT] Command submitted: %s\n", command.c_str());
+
+                                // Execute command callback if registered
+                                {
+                                    std::lock_guard<std::mutex> lock(g_callback_mutex);
+                                    if (g_command_callback)
+                                    {
+                                        g_command_callback(command);
+                                    }
+                                }
+
                                 clear_input_buffer();
                                 set_ui_active(false);
                                 return 1;
@@ -242,7 +258,7 @@ namespace input_manager
 
         class component final : public component_interface
         {
-        public:
+          public:
             void post_load() override
             {
                 W3mLog("=== REGISTERING INPUT MANAGER FUNCTIONS ===");
@@ -256,9 +272,7 @@ namespace input_manager
 
                 W3mLog("Registered 6 input manager functions");
 
-                scheduler::once([] {
-                    install_message_hook();
-                }, scheduler::pipeline::main, std::chrono::milliseconds(1000));
+                scheduler::once([] { install_message_hook(); }, scheduler::pipeline::main, std::chrono::milliseconds(1000));
 
                 printf("[W3MP INPUT] Input manager initialized\n");
             }
@@ -268,6 +282,28 @@ namespace input_manager
                 uninstall_message_hook();
             }
         };
+    }
+
+    // ===================================================================
+    // PUBLIC API
+    // ===================================================================
+
+    bool is_ui_active()
+    {
+        return g_ui_active.load();
+    }
+
+    std::string get_input_buffer()
+    {
+        std::lock_guard<std::mutex> lock(g_input_mutex);
+        return g_input_buffer;
+    }
+
+    void set_command_callback(command_callback callback)
+    {
+        std::lock_guard<std::mutex> lock(g_callback_mutex);
+        g_command_callback = std::move(callback);
+        printf("[W3MP INPUT] Command callback registered\n");
     }
 }
 

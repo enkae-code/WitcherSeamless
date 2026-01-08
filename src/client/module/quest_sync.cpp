@@ -337,6 +337,15 @@ namespace quest_sync
             }
         };
     }
+
+    // ===================================================================
+    // PUBLIC API
+    // ===================================================================
+
+    bool is_global_sync_active()
+    {
+        return g_W3mGlobalSyncInProgress.load();
+    }
 }
 
 REGISTER_COMPONENT(quest_sync::component)

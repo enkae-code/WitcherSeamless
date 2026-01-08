@@ -371,4 +371,10 @@ namespace quest_sync
         mutable std::mutex m_teleport_mutex;
         std::unordered_map<uint64_t, teleport_request> m_pending_teleports;
     };
+
+    // ---------------------------------------------------------------------------
+    // PUBLIC API
+    // ---------------------------------------------------------------------------
+
+    bool is_global_sync_active();
 }
