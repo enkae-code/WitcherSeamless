@@ -1,2 +1,4 @@
 **/*.hxx
 deps/**/*
+build/**/*
+.github/**/*

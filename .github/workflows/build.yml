@@ -37,7 +37,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          FILES=$(git ls-files '*.c' '*.cc' '*.cpp' '*.cxx' '*.h' '*.hpp' '*.hxx')
+          # Only look at our code, ignore the massive dependency folders
+          FILES=$(git ls-files 'src/*.c' 'src/*.cpp' 'src/*.h' 'src/*.hpp')
           if [ -z "$FILES" ]; then
             echo "No C/C++ sources detected."
             exit 0
