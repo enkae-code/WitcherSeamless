@@ -30,6 +30,9 @@ This repository adheres to **Senior Full-Stack** architectural standards:
 2. Extract `scripting_experiments.dll` (renamed to `W3m.dll`) to your game's `bin/x64_dx12` folder.
 3. Launch the game and press `Alt + S` to verify the Midnight UI.
 
+## 🐧 Platform Support
+* **Linux / Steam Deck**: Fully supported via Proton. See the [Linux & Steam Deck Optimization Guide](LINUX_STEAMDECK.md) for injection steps and performance tuning.
+
 ## ⚠️ System Requirements
 - **Game Version**: The Witcher 3: Wild Hunt - Next-Gen Update (v4.0 or higher).
 - **Renderer**: **DirectX 12 (Required)**. 
