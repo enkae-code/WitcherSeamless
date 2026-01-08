@@ -1,0 +1,58 @@
+# --- Witcher3Seamless CORE ---
+build/
+bin/
+out/
+legacy_archive/
+*.log
+*.bak
+*.tmp
+
+# --- Build Artifacts (MSBuild/CMake) ---
+x64/
+Debug/
+Release/
+*.exe
+*.dll
+*.lib
+*.pdb
+*.obj
+*.iobj
+*.ipdb
+*.tlog
+*.lastbuildstate
+*.recipe
+*.ilk
+
+# --- IDE & System ---
+.vs/
+.vscode/
+.idea/
+.DS_Store
+*.user
+*.suo
+*.db
+*.opendb
+
+# --- CMake Specific ---
+CMakeCache.txt
+CMakeFiles/
+CMakePresets.json
+Win32/
+\# --- Special Files ---
+nul
+
+
+build/
+build*/
+.vs/
+bin/
+artifacts*/
+
+/r4game/
+/mods/
+/scripts/
+build*/
+.vs/
+deps/
+bin/
+artifacts*/
