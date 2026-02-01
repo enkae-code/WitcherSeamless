@@ -78,7 +78,7 @@ jobs:
 
       - name: Install Ninja (Windows)
         if: runner.os == 'Windows'
-        uses: seanmiddleditch/gha-setup-ninja@v4
+        uses: seanmiddleditch/gha-setup-ninja@v6
 
       - name: Enable MSVC environment
         if: runner.os == 'Windows'
