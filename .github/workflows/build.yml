@@ -68,7 +68,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install CMake and Ninja
-        uses: lukka/get-cmake@v3.29.5
+        uses: lukka/get-cmake@v4.2.3
 
       - name: Install build prerequisites (Linux)
         if: runner.os == 'Linux'
