@@ -110,7 +110,7 @@ jobs:
 
       - name: Upload Windows Artifacts
         if: runner.os == 'Windows'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: artifacts-windows
           path: build/**/*.dll # Finds W3m.dll anywhere in build/
@@ -118,7 +118,7 @@ jobs:
 
       - name: Upload Linux Artifacts
         if: runner.os == 'Linux'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: artifacts-linux
           path: build/**/artifacts/* # Finds the Linux server artifacts
